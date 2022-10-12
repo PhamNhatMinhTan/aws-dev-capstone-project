@@ -1,0 +1,229 @@
+org: minhtan
+app: serverless-product-app
+service: serverless-product-app
+
+plugins:
+  - serverless-webpack
+  - serverless-iam-roles-per-function
+  - serverless-plugin-tracing
+  - serverless-aws-documentation
+  - serverless-reqvalidator-plugin
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  lambdaHashingVersion: '20201221'
+
+  stage: ${opt:stage, 'dev'}
+  region: ${opt:region, 'us-east-1'}
+
+  tracing:
+    lambda: true
+    apiGateway: true
+
+  environment:
+    PRODUCTS_TABLE: Products-${self:provider.stage}
+    PRODUCTS_CREATED_AT_INDEX: CreatedAtIndex
+    ATTACHMENT_S3_BUCKET: serverless-product-image-${self:provider.stage}
+    SIGNED_URL_EXPIRATION: 300
+
+  logs:
+    # Enable API Gateway logs
+    restApi: true
+
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - xray:PutTelemetryRecords
+            - xray:PutTraceSegments
+          Resource: "*"
+
+# Custom serverless-offline, dynamodb local and validate request
+custom:
+  documentation:
+    api:
+      info:
+        version: v1.0.0
+        title: Product Serverless
+        description: The serverless for Products application
+    models:
+      - name: CreateProductRequest
+        contentType: application/json
+        schema: ${file(models/create-product-model.json)}
+      - name: UpdateProductRequest
+        contentType: application/json
+        schema: ${file(models/update-product-model.json)}
+
+# Serverless functions
+functions:
+
+  Auth:
+    handler: src/lambda/auth/auth0Authorizer.handler
+
+  GetProducts:
+    handler: src/lambda/http/getProducts.handler
+    events:
+      - http:
+          method: get
+          path: Products
+          cors: true
+          authorizer: Auth
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:Query
+        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.PRODUCTS_TABLE}
+
+  CreateProduct:
+    handler: src/lambda/http/createProduct.handler
+    events:
+      - http:
+          method: post
+          path: products
+          cors: true
+          authorizer: Auth
+          reqValidatorName: RequestBodyValidation
+          documentation:
+            summary: Create a new product item
+            description: Create a new product item
+            requestModels:
+              application/json: CreateProductRequest
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:PutItem
+        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.PRODUCTS_TABLE}
+
+  UpdateProduct:
+    handler: src/lambda/http/updateProduct.handler
+    events:
+      - http:
+          method: patch
+          path: products/{productId}
+          cors: true
+          reqValidatorName: RequestBodyValidation
+          documentation:
+            summary: Update a product item
+            description: Update a product item
+            requestModels:
+              application/json: UpdateProductRequest
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:UpdateItem
+        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.PRODUCTS_TABLE}
+
+  DeleteProduct:
+    handler: src/lambda/http/deleteProduct.handler
+    events:
+      - http:
+          method: delete
+          path: products/{productId}
+          cors: true
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:DeleteItem
+        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.PRODUCTS_TABLE}
+
+  GenerateUploadUrl:
+    handler: src/lambda/http/generateUploadUrl.handler
+    events:
+      - http:
+          method: post
+          path: products/{productId}/attachment
+          cors: true
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - s3:PutObject
+        Resource: arn:aws:s3:::${self:provider.environment.ATTACHMENT_S3_BUCKET}/*
+      - Effect: Allow
+        Action:
+          - dynamodb:UpdateItem
+        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.PRODUCTS_TABLE}
+
+# Generate AWS Services
+resources:
+  Resources:
+    RequestBodyValidation:
+      Type: AWS::ApiGateway::RequestValidator
+      Properties: 
+        Name: 'request-body-validator'
+        RestApiId:
+          Ref: ApiGatewayRestApi
+        ValidateRequestBody: true
+        ValidateRequestParameters: false
+
+    GatewayResponseDefault4XX:
+      Type: AWS::ApiGateway::GatewayResponse
+      Properties:
+        ResponseParameters:
+          gatewayresponse.header.Access-Control-Allow-Origin: "'*'"
+          gatewayresponse.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+          gatewayresponse.header.Access-Control-Allow-Methods: "'GET,OPTIONS,POST'"
+        ResponseType: DEFAULT_4XX
+        RestApiId:
+          Ref: ApiGatewayRestApi
+    
+    ProductsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.PRODUCTS_TABLE}
+        AttributeDefinitions:
+          - AttributeName: userId
+            AttributeType: S
+          - AttributeName: productId
+            AttributeType: S
+          - AttributeName: manufacturingDate
+            AttributeType: S
+        KeySchema:
+          - AttributeName: userId
+            KeyType: HASH
+          - AttributeName: productId
+            KeyType: RANGE
+        BillingMode: PAY_PER_REQUEST
+        LocalSecondaryIndexes:
+          - IndexName: ${self:provider.environment.PRODUCTS_CREATED_AT_INDEX}
+            KeySchema:
+              - AttributeName: userId
+                KeyType: HASH
+              - AttributeName: manufacturingDate
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL # What attributes will be copied to an index
+
+    AttachmentsBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:provider.environment.ATTACHMENT_S3_BUCKET}
+        CorsConfiguration:
+          CorsRules:
+            -
+              AllowedOrigins:
+                - '*'
+              AllowedHeaders:
+                - '*'
+              AllowedMethods:
+                - GET
+                - PUT
+                - POST
+                - DELETE
+                - HEAD
+              MaxAge: 3000
+
+    BucketPolicy:
+      Type: AWS::S3::BucketPolicy
+      Properties:
+        PolicyDocument:
+          Id: MyPolicy
+          Version: "2012-10-17"
+          Statement:
+            - Sid: PublicReadForGetBucketObjects
+              Effect: Allow
+              Principal: '*'
+              Action: 's3:GetObject'
+              Resource: 'arn:aws:s3:::${self:provider.environment.ATTACHMENT_S3_BUCKET}/*'
+        Bucket: !Ref AttachmentsBucket
