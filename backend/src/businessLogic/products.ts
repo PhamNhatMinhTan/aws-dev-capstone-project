@@ -19,6 +19,10 @@ export async function getProductsForUser(userId: string): Promise<ProductItem[]>
   return await productAccess.getProductsbyUserId(userId);
 }
 
+export async function getProductByProductId(userId: string, productId: string): Promise<ProductItem> {
+  return await productAccess.getProductByProductId(userId, productId);
+}
+
 export async function createProduct(request: CreateProductRequest, userId: string): Promise<ProductItem> {
 
   const expirationDate = new Date()

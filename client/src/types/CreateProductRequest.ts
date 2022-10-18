@@ -4,5 +4,5 @@
 export interface CreateProductRequest {
   name: string
   brand: string
-  manufacturingDate: string
+  manufacturingDate?: string
 }

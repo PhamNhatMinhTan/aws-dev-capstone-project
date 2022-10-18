@@ -31,6 +31,20 @@ export class ProductAccess {
 
   }
 
+  async getProductByProductId(userId: string, productId: string): Promise<ProductItem> {
+    const result = await this.docClient.get({
+      TableName: this.PRODUCT_TABLE,
+      Key: {
+        userId: userId,
+        productId: productId,
+      }
+    }).promise()
+
+    logger.info("Product items: " + result.Item)
+    logger.info("Get product item successfully!")
+    return result.Item as ProductItem
+  }
+
   async createProductItem(productItem: ProductItem): Promise<ProductItem> {
     await this.docClient.put({
       TableName: this.PRODUCT_TABLE,
@@ -52,12 +66,11 @@ export class ProductAccess {
         userId: userId,
         productId: productId,
       },
-      UpdateExpression: "set #name = :name, brand = :brand, expirationDate = :expirationDate",
+      UpdateExpression: "set #name = :name, brand = :brand",
       ExpressionAttributeNames: { "#name": "name" },
       ExpressionAttributeValues: {
         ':name': productUpdate.name,
-        ':brand': productUpdate.brand,
-        ':expirationDate': productUpdate.expirationDate
+        ':brand': productUpdate.brand
       }
     }).promise()
       .then(data => {
