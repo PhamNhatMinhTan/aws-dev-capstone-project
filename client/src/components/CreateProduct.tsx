@@ -1,11 +1,11 @@
 import * as React from 'react'
+import { History } from 'history'
 import { Form, Button } from 'semantic-ui-react'
 import Auth from '../auth/Auth'
-import dateFormat from 'dateformat'
 import { createProduct } from '../api/products-api'
-import { Product } from '../types/Product'
 
 interface ProductsProps {
+  history: History
   auth: Auth
 }
 
@@ -34,33 +34,20 @@ export class CreateProduct extends React.PureComponent<ProductsProps, ProductsSt
     event.preventDefault()
     
     try {
-      const manufacturingDate = this.calculateDueDate()
-      console.log("name: " + this.state.name)
-      console.log("brand: " + this.state.brand)
-      console.log("manufacturingDate: " + manufacturingDate)
-      
       const newProduct = await createProduct(this.props.auth.getIdToken(), {
         name: this.state.name,
 				brand: this.state.brand
-        // manufacturingDate
       })
       this.setState({
-        // products: [...this.state.products, newProduct],
         name: '',
 				brand: ''
       })
 
       alert('New product was created!')
+      this.props.history.goBack()
     } catch {
       alert('Product creation failed')
     }
-  }
-
-  calculateDueDate(): string {
-    const date = new Date()
-    date.setDate(date.getDate() + 7)
-
-    return dateFormat(date, 'yyyy-mm-dd') as string
   }
 
   render() {
@@ -87,14 +74,7 @@ export class CreateProduct extends React.PureComponent<ProductsProps, ProductsSt
 
     return (
       <div>
-        {/* {this.state.uploadState === UploadState.FetchingPresignedUrl && <p>Uploading image metadata</p>}
-        {this.state.uploadState === UploadState.UploadingFile && <p>Uploading file</p>} */}
-        <Button
-          // loading={this.state.uploadState !== UploadState.NoUpload}
-          type="submit"
-        >
-          Upload
-        </Button>
+        <Button type="submit" content="Create" />
       </div>
     )
   }

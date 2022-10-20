@@ -4,14 +4,12 @@ import update from 'immutability-helper'
 import * as React from 'react'
 import {
   Button,
-  Checkbox,
-  Divider,
   Grid,
   Header,
   Icon,
-  Input,
   Image,
-  Loader
+  Loader,
+  Table,
 } from 'semantic-ui-react'
 
 import { deleteProduct, getProducts } from '../api/products-api'
@@ -48,22 +46,6 @@ export class Products extends React.PureComponent<ProductsProps, ProductsState> 
     this.props.history.push(`/products/create`)
   }
 
-  // onTodoCreate = async (event: React.ChangeEvent<HTMLButtonElement>) => {
-  //   try {
-  //     const dueDate = this.calculateDueDate()
-  //     const newTodo = await createTodo(this.props.auth.getIdToken(), {
-  //       name: this.state.newTodoName,
-  //       dueDate
-  //     })
-  //     this.setState({
-  //       todos: [...this.state.todos, newTodo],
-  //       newTodoName: ''
-  //     })
-  //   } catch {
-  //     alert('Todo creation failed')
-  //   }
-  // }
-
   onProductDelete = async (productId: string) => {
     try {
       await deleteProduct(this.props.auth.getIdToken(), productId)
@@ -74,24 +56,6 @@ export class Products extends React.PureComponent<ProductsProps, ProductsState> 
       alert('Product deletion failed')
     }
   }
-
-  // onProductCheck = async (pos: number) => {
-  //   try {
-  //     const todo = this.state.todos[pos]
-  //     await patchProduct(this.props.auth.getIdToken(), todo.todoId, {
-  //       name: todo.name,
-  //       dueDate: todo.dueDate,
-  //       done: !todo.done
-  //     })
-  //     this.setState({
-  //       todos: update(this.state.todos, {
-  //         [pos]: { done: { $set: !todo.done } }
-  //       })
-  //     })
-  //   } catch {
-  //     alert('Todo deletion failed')
-  //   }
-  // }
 
   async componentDidMount() {
     try {
@@ -110,35 +74,21 @@ export class Products extends React.PureComponent<ProductsProps, ProductsState> 
       <div>
         <Header as="h1">PRODUCTs</Header>
 
-        {this.renderCreateProductInput()}
+        {this.renderCreateProductButton()}
 
         {this.renderProducts()}
       </div>
     )
   }
 
-  renderCreateProductInput() {
+  renderCreateProductButton() {
     return (
-      <Grid.Row>
-        <Grid.Column width={16}>
-          <Input
-            action={{
-              color: 'teal',
-              labelPosition: 'left',
-              icon: 'add',
-              content: 'New task',
-              onClick: this.onCreateButtonClick
-            }}
-            fluid
-            actionPosition="left"
-            placeholder="To change the world..."
-            onChange={this.handleNameChange}
-          />
-        </Grid.Column>
-        <Grid.Column width={16}>
-          <Divider />
-        </Grid.Column>
-      </Grid.Row>
+      <Button 
+      onClick={this.onCreateButtonClick }
+      content="Create product" 
+      icon="add"
+      labelPosition='left'
+      primary />
     )
   }
 
@@ -162,57 +112,57 @@ export class Products extends React.PureComponent<ProductsProps, ProductsState> 
 
   renderProductsList() {
     return (
-      <Grid padded>
-        {this.state.products.map((product, pos) => {
+      <Table celled padded>
+        <Table.Header>
+          <Table.Row>
+            <Table.HeaderCell>Thumbnail</Table.HeaderCell>
+            <Table.HeaderCell>Name</Table.HeaderCell>
+            <Table.HeaderCell>Brand</Table.HeaderCell>
+            <Table.HeaderCell>MFG Date</Table.HeaderCell>
+            <Table.HeaderCell>EXP Date</Table.HeaderCell>
+            <Table.HeaderCell>Actions</Table.HeaderCell>
+          </Table.Row>
+        </Table.Header>
+        {this.state.products.map((product) => {
           return (
-            <Grid.Row key={product.productId}>
-              <Grid.Column width={1} verticalAlign="middle">
-                {/* <Checkbox
-                  onChange={() => this.onTodoCheck(pos)}
-                  checked={product.brand}
-                /> */}
-              </Grid.Column>
-              <Grid.Column width={10} verticalAlign="middle">
-                {product.name}
-              </Grid.Column>
-              <Grid.Column width={3} floated="right">
-                {product.expirationDate}
-              </Grid.Column>
-              <Grid.Column width={1} floated="right">
-                <Button
-                  icon
-                  color="blue"
-                  onClick={() => this.onEditButtonClick(product.productId)}
-                >
-                  <Icon name="pencil" />
-                </Button>
-              </Grid.Column>
-              <Grid.Column width={1} floated="right">
-                <Button
-                  icon
-                  color="red"
-                  onClick={() => this.onProductDelete(product.productId)}
-                >
-                  <Icon name="delete" />
-                </Button>
-              </Grid.Column>
-              {product.attachmentUrl && (
-                <Image src={product.attachmentUrl} size="small" wrapped />
-              )}
-              <Grid.Column width={16}>
-                <Divider />
-              </Grid.Column>
-            </Grid.Row>
+            <Table.Body>
+              <Table.Row>
+                <Table.Cell>
+                  <Image src={product.attachmentUrl} size="small" />
+                </Table.Cell>
+                <Table.Cell verticalAlign="middle">
+                  {product.name}
+                </Table.Cell>
+                <Table.Cell verticalAlign="middle">
+                  {product.brand}
+                </Table.Cell>
+                <Table.Cell verticalAlign="middle">
+                  {product.manufacturingDate}
+                </Table.Cell>
+                <Table.Cell verticalAlign="middle">
+                  {product.expirationDate}
+                </Table.Cell>
+                <Table.Cell>
+                  <Button 
+                    icon
+                    color="blue"
+                    onClick={() => this.onEditButtonClick(product.productId) }
+                  >
+                    <Icon name="pencil" />
+                  </Button>
+                  <Button 
+                    icon
+                    color="red"
+                    onClick={() => this.onProductDelete(product.productId) }
+                  >
+                    <Icon name="delete" />
+                  </Button>
+                </Table.Cell>
+              </Table.Row>
+            </Table.Body>
           )
         })}
-      </Grid>
+      </Table>
     )
   }
-
-  // calculateDueDate(): string {
-  //   const date = new Date()
-  //   date.setDate(date.getDate() + 7)
-
-  //   return dateFormat(date, 'yyyy-mm-dd') as string
-  // }
 }

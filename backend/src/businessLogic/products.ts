@@ -25,13 +25,14 @@ export async function getProductByProductId(userId: string, productId: string): 
 
 export async function createProduct(request: CreateProductRequest, userId: string): Promise<ProductItem> {
 
-  const expirationDate = new Date()
+  const mfgDate = new Date()
 
   // Initialize the ProductItem
   const productItem: ProductItem = {
     userId: userId,
     productId: uuid.v4(),
-    expirationDate: new Date(expirationDate.setMonth(expirationDate.getMonth() + 8)).toISOString(),
+    manufacturingDate: mfgDate.toISOString().split("T")[0],
+    expirationDate: new Date(mfgDate.setMonth(mfgDate.getMonth() + 6)).toISOString().split("T")[0],
     ...request
   }
 
@@ -55,8 +56,8 @@ export async function createAttachmentPresignedUrl(productId: string) {
   return await getUploadUrl(productId);
 }
 
-export async function uploadProductImage(userId: string, productId: string): Promise<void> {
-  let attachmentUrl: string = `https://${ATTACHMENT_S3_BUCKET}.s3.amazonaws.com/${productId}`
+export async function uploadProductImage(userId: string, productId: string, url: string): Promise<void> {
+  let attachmentUrl: string = `https://${ATTACHMENT_S3_BUCKET}.s3.amazonaws.com/${url}`
 
   logger.info("Attachment URL = " + attachmentUrl)
 

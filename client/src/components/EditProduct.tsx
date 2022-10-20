@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { History } from 'history'
 import { Form, Button } from 'semantic-ui-react'
 import Auth from '../auth/Auth'
 import { getProductByProductId, updateProduct, getUploadUrl, uploadFile } from '../api/products-api'
@@ -16,6 +17,7 @@ interface EditProductProps {
       productId: string
     }
   }
+  history: History
   auth: Auth
 }
 
@@ -65,20 +67,15 @@ export class EditProduct extends React.PureComponent<EditProductProps, EditProdu
 
       if (this.state.file) {
         this.setUploadState(UploadState.FetchingPresignedUrl)
+        
         const uploadUrl = await getUploadUrl(this.props.auth.getIdToken(), this.props.match.params.productId)
 
         this.setUploadState(UploadState.UploadingFile)
         await uploadFile(uploadUrl, this.state.file)
       }
 
-      // if (!this.state.file) {
-      //   alert('File should be selected')
-      //   return
-      // }
-
-      
-
       alert('Product was updated!')
+      this.props.history.goBack()
     } catch (e) {
       alert('Could not upload a file: ' + (e as Error).message)
     } finally {
@@ -92,9 +89,9 @@ export class EditProduct extends React.PureComponent<EditProductProps, EditProdu
     })
   }
 
+
   async componentDidMount() {
     try {
-      console.log('componentDidMount called.')
       const product = await getProductByProductId(this.props.auth.getIdToken(), this.props.match.params.productId)
       
       this.setState({
@@ -109,7 +106,7 @@ export class EditProduct extends React.PureComponent<EditProductProps, EditProdu
   render() {
     return (
       <div>
-        <h1>Upload new image</h1>
+        <h1>Update the product</h1>
 
         <Form onSubmit={this.handleSubmit}>
           <Form.Field>
@@ -145,9 +142,8 @@ export class EditProduct extends React.PureComponent<EditProductProps, EditProdu
         <Button
           loading={this.state.uploadState !== UploadState.NoUpload}
           type="submit"
-        >
-          Upload
-        </Button>
+          content="Update"
+        />
       </div>
     )
   }
